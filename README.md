@@ -42,6 +42,11 @@ brew install textream
 
 > Requires **macOS 15 Sequoia** or later. Works on Apple Silicon and Intel.
 
+### Windows
+
+A community-maintained Windows port is available at
+**[CRTkafa/textream-windows](https://github.com/CRTkafa/textream-windows)**.
+
 ## iOS 26 Companion
 
 The Textream companion for iPhone and iPad is part of the same universal App Store listing as the Mac app.
@@ -276,145 +281,4 @@ The Director Mode exposes an HTTP server and a WebSocket server on your local ne
 3. Within five seconds, send `{"type":"auth","text":"<token>"}` as the first WebSocket frame. The server closes clients that skip or fail authentication.
 4. Send command frames to control the teleprompter. Once a script is active, the server broadcasts state frames as JSON at approximately 10 Hz.
 
-Director Mode is intended for trusted local networks. HTTP and WebSocket traffic is not encrypted, so do not expose either port to the public internet or log/share the token.
-
-### Commands (Client → App)
-
-Send JSON messages over the WebSocket:
-
-#### `auth` — Authenticate the connection
-
-```json
-{
-  "type": "auth",
-  "text": "<64-character token from the Director page>"
-}
-```
-
-This must be the first frame on every connection. It does not start a read.
-
-#### `setText` — Start reading a new script
-
-```json
-{
-  "type": "setText",
-  "text": "Welcome everyone to today's live stream..."
-}
-```
-
-Replaces the current text, starts word tracking, and opens the teleprompter overlay. This is equivalent to pressing **Go** in the built-in web UI.
-
-#### `updateText` — Edit unread text while active
-
-```json
-{
-  "type": "updateText",
-  "text": "Welcome everyone to today's live stream We changed the rest of the script...",
-  "readCharCount": 42
-}
-```
-
-Updates the full script text while preserving the confirmed read position. Set `readCharCount` to the latest `highlightedCharCount` received from Textream; do not calculate this offset independently. Textream clamps it to the Mac’s recognized count and the new script length. Keep the prefix before that offset unchanged and edit only unread text after it.
-
-#### `stop` — Stop the teleprompter
-
-```json
-{
-  "type": "stop"
-}
-```
-
-Stops word tracking and dismisses the overlay.
-
-### State (App → Client)
-
-The server broadcasts a JSON object on every tick (~100 ms):
-
-```json
-{
-  "words": ["Welcome", "everyone", "to", "today's", "live", "stream"],
-  "highlightedCharCount": 24,
-  "totalCharCount": 120,
-  "isActive": true,
-  "isDone": false,
-  "isListening": true,
-  "fontColor": "#F5F5F7",
-  "cueColor": "#F5F5F7",
-  "lastSpokenText": "Welcome everyone to today's",
-  "audioLevels": [0.12, 0.34, 0.08, ...]
-}
-```
-
-| Field | Type | Description |
-|---|---|---|
-| `words` | `string[]` | The script split into words (same order as displayed in the overlay). |
-| `highlightedCharCount` | `int` | Number of characters recognized so far. Use this to determine the read boundary. |
-| `totalCharCount` | `int` | Total character count of the full script. |
-| `isActive` | `bool` | `true` when the teleprompter overlay is visible and a script is loaded. |
-| `isDone` | `bool` | `true` when `highlightedCharCount >= totalCharCount` (finished reading). |
-| `isListening` | `bool` | `true` when the microphone is actively listening. |
-| `fontColor` | `string` | CSS color of the text in the overlay (user preference). |
-| `cueColor` | `string` | CSS color of bracketed stage directions (user preference). |
-| `lastSpokenText` | `string` | Last recognized speech fragment. |
-| `audioLevels` | `double[]` | Array of audio level samples (0.0–1.0) for waveform visualization. |
-
-When the overlay is not active, the server sends a frame with `isActive: false` and empty arrays.
-
-### Example: Minimal Python Client
-
-```python
-import asyncio, json, re, urllib.request
-import websockets
-
-HOST = "192.168.1.42"
-HTTP_PORT = 7575
-
-def director_token():
-    with urllib.request.urlopen(f"http://{HOST}:{HTTP_PORT}", timeout=3) as response:
-        html = response.read().decode("utf-8")
-    match = re.search(r"AUTH_TOKEN='([0-9a-f]{64})'", html)
-    if not match:
-        raise RuntimeError("Director token not found")
-    return match.group(1)
-
-async def director():
-    async with websockets.connect(f"ws://{HOST}:{HTTP_PORT + 1}") as ws:
-        # Authenticate before sending any commands.
-        await ws.send(json.dumps({
-            "type": "auth",
-            "text": director_token()
-        }))
-
-        # Send a script
-        await ws.send(json.dumps({
-            "type": "setText",
-            "text": "Hello everyone, welcome to the show."
-        }))
-
-        # Listen for state updates
-        async for msg in ws:
-            state = json.loads(msg)
-            pct = 0
-            if state["totalCharCount"] > 0:
-                pct = state["highlightedCharCount"] / state["totalCharCount"] * 100
-            print(f"Progress: {pct:.0f}%  Done: {state['isDone']}")
-            if state["isDone"]:
-                break
-
-        # Stop
-        await ws.send(json.dumps({"type": "stop"}))
-
-asyncio.run(director())
-```
-
-## License
-
-MIT
-
----
-
-<p align="center">
-  Original idea by <a href="https://x.com/semihdev">Semih Kışlar</a> — thanks to him!<br>
-  Made by <a href="https://fka.dev">Fatih Kadir Akin</a><br>
-  <a href="https://textream.net/privacy.html">Privacy</a> · <a href="https://textream.net/support.html">Support</a>
-</p>
+Director Mode is intended for trusted local networks. HTTP and WebSocket traffic is not encrypted, so do not expose either server directly to the public internet.
