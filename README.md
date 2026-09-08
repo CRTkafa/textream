@@ -59,7 +59,7 @@ The Textream companion for iPhone and iPad is part of the same universal App Sto
 - **Selfie video recording** — Record mode captures camera video and microphone audio, starts with the front camera, and lets you switch between front and back cameras before recording.
 - **Saved to Photos** — Completed recordings are added to Photos and appear in an adaptive Textream recordings gallery, where you can play, select, and delete them. If a save fails, Textream keeps a pending local copy and offers retry or discard controls in the current or next Record session.
 - **Presenter-only prompt** — The translucent scrolling prompt is visible on screen while you record, but it is not burned into the saved video.
-- **Matching fonts** — Sans, Serif, Mono, OpenDyslexic are available on both platforms.
+- **Matching fonts** — Sans, Serif, Mono, and OpenDyslexic are available on both platforms.
 - **Liquid Glass** — Controls use the native iOS 26 Liquid Glass appearance.
 
 ## Features
@@ -407,7 +407,7 @@ async def director():
                 break
 
         # Stop
-        await ws.send(json.dumps({"type": "stop"}))
+        await ws.send(json.dumps({"type":"stop"}))
 
 asyncio.run(director())
 ```
